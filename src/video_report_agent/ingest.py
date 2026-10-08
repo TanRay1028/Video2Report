@@ -16,6 +16,7 @@ import httpx
 
 BILIBILI_HOSTS = frozenset({"bilibili.com", "www.bilibili.com"})
 DOUYIN_HOSTS = frozenset({"douyin.com", "www.douyin.com"})
+DOUYIN_SHORT_HOSTS = frozenset({"v.douyin.com"})
 _BVID_PATTERN = re.compile(r"BV[0-9A-Za-z]{10}")
 _PAGE_PATTERN = re.compile(r"[0-9]+")
 _DOUYIN_ID_PATTERN = re.compile(r"[0-9]{15,25}")
@@ -190,6 +191,27 @@ def _parse_douyin_url(value: object) -> tuple[str, str, str]:
         port = parsed.port
     except ValueError as exc:
         raise UrlIngestError("URL_INVALID", "url is not a valid HTTPS Douyin URL") from exc
+    if hostname in DOUYIN_SHORT_HOSTS:
+        if (
+            parsed.scheme != "https"
+            or parsed.username
+            or parsed.password
+            or port is not None
+            or parsed.fragment
+            or re.fullmatch(r"/[A-Za-z0-9]+/?", parsed.path) is None
+        ):
+            raise UrlIngestError("URL_INVALID", "无效的抖音短链接")
+        try:
+            response = httpx.get(link, follow_redirects=True, timeout=15)
+            response.raise_for_status()
+            link = str(response.url)
+            parsed = urlsplit(link)
+            hostname = parsed.hostname.lower() if parsed.hostname else None
+            port = parsed.port
+        except (httpx.HTTPError, ValueError) as exc:
+            raise UrlIngestError(
+                "URL_RESOLVE_FAILED", "抖音短链接解析失败，请稍后重试或粘贴完整视频链接"
+            ) from exc
     if parsed.scheme != "https" or not (
         hostname in DOUYIN_HOSTS or (hostname is not None and hostname.endswith(".douyin.com"))
     ):

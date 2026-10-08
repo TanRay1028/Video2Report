@@ -11,6 +11,7 @@ from video_report_agent.ingest import (
 
 DOUYIN_MODAL_URL = "https://www.douyin.com/jingxuan?modal_id=7688660484593532378"
 DOUYIN_VIDEO_URL = "https://www.douyin.com/video/7688660484593532378"
+DOUYIN_SHORT_URL = "https://v.douyin.com/abc123/"
 
 
 def test_douyin_jingxuan_modal_id_is_validated():
@@ -34,6 +35,21 @@ def test_douyin_share_text_and_markdown_are_supported():
     assert validate_douyin_url(shared).item_id == "7688660484593532378"
     markdown = "[视频](https://www.douyin.com/jingxuan?modal_id=7688660484593532378)"
     assert validate_douyin_url(markdown).item_id == "7688660484593532378"
+
+
+def test_douyin_short_link_resolves_to_canonical_video(monkeypatch):
+    class Response:
+        url = DOUYIN_VIDEO_URL + "?previous_page=web_code_link"
+
+        @staticmethod
+        def raise_for_status():
+            return None
+
+    monkeypatch.setattr("video_report_agent.ingest.httpx.get", lambda *a, **k: Response())
+    source = validate_douyin_url("2.07 share text " + DOUYIN_SHORT_URL + " copy")
+    assert source.item_id == "7688660484593532378"
+    assert source.canonical_url == DOUYIN_VIDEO_URL
+    assert source.submitted_url.endswith("copy")
 
 
 @pytest.mark.parametrize(

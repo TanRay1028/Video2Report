@@ -107,6 +107,25 @@ def test_page_text_skips_browser_when_html_is_real(monkeypatch):
     assert douyin_download._page_text(DOUYIN_VIDEO_URL) == PAGE_BODY
 
 
+def test_rendered_page_text_retries_during_navigation():
+    class Page:
+        def __init__(self):
+            self.calls = 0
+
+        def content(self):
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("Page.content: page is navigating and changing the content")
+            return PAGE_BODY
+
+        def wait_for_timeout(self, milliseconds):
+            return None
+
+    page = Page()
+    assert douyin_download._rendered_page_text(page, timeout_seconds=1) == PAGE_BODY
+    assert page.calls == 2
+
+
 def test_download_douyin_video_rejects_image_posts(tmp_path, monkeypatch):
     _patch_httpx(monkeypatch, page_body='{"desc":"图集作品"}')
     source = validate_douyin_url(DOUYIN_VIDEO_URL)

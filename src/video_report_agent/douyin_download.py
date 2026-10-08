@@ -47,6 +47,32 @@ def _http_page_text(url: str) -> str:
     return response.text
 
 
+def _rendered_page_text(page, *, timeout_seconds: float = 20) -> str:
+    """Read rendered markup while tolerating Douyin's intermediate navigations."""
+
+    deadline = time.time() + timeout_seconds
+    last_content = ""
+    last_navigation_error = None
+    while time.time() < deadline:
+        try:
+            content = page.content()
+        except Exception as exc:
+            if "page is navigating" not in str(exc).lower():
+                raise
+            last_navigation_error = exc
+            page.wait_for_timeout(250)
+            continue
+        last_content = content
+        if _PLAY_ADDR_PATTERN.search(content):
+            return content
+        page.wait_for_timeout(500)
+    if last_content:
+        return last_content
+    if last_navigation_error is not None:
+        raise last_navigation_error
+    return page.content()
+
+
 def _browser_page_text(url: str) -> str:
     """Render the page with headless Chromium when Douyin serves a JS challenge."""
 
@@ -63,13 +89,7 @@ def _browser_page_text(url: str) -> str:
             page = context.new_page()
             try:
                 page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-                deadline = time.time() + 20
-                while time.time() < deadline:
-                    content = page.content()
-                    if _PLAY_ADDR_PATTERN.search(content):
-                        return content
-                    page.wait_for_timeout(500)
-                return page.content()
+                return _rendered_page_text(page)
             finally:
                 browser.close()
     except Exception as exc:  # playwright raises its own timeout/network errors
