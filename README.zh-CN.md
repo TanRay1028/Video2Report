@@ -89,3 +89,13 @@ uv lock --check
 ```
 
 报告规则见 [`SKILL.md`](src/video_report_agent/skills/video-report/SKILL.md)，工程文档见 [docs/README.md](docs/README.md)。
+
+## Hermes Agent（Linux）
+
+可安装的 Hermes Skill 位于 `skills/video-report/`，可以从 GitHub 安装完整的多文件 Skill：
+
+```sh
+hermes skills install TanRay1028/Video2Report/skills/video-report
+```
+
+Skill 自带 Linux 环境准备和运行包装脚本；系统仍需预先提供 `git`、`uv`、`ffmpeg` 和 `ffprobe`，安装脚本不会调用 `sudo`。详见 [Hermes Linux 使用说明](docs/HERMES.md)。

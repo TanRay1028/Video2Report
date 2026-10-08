@@ -1,5 +1,13 @@
 # 重要设计决策
 
+## 2026-10-08：Hermes Skill 复用主仓库运行时
+
+决定：在 `skills/video-report/` 提供 Linux Hermes 可安装目录，随包携带报告规则、模板和 POSIX `sh` 包装脚本；下载、音频、ASR 与转写代码继续从同一 Video2Report 仓库运行时安装，不复制第二份 Python 实现。
+
+原因：Hermes 的 GitHub Skill 安装只携带目标 Skill 目录，但下载器需要完整 Python 包及锁文件。包装脚本用稳定的用户目录定位运行时与任务产物，同时保持下载器修复只有一个源码来源。
+
+代价：首次使用需要系统预装 `git`、`uv`、`ffmpeg` 与 `ffprobe`，并会克隆运行时、安装 Python 依赖和 Chromium；报告规则的 Hermes 副本需通过测试保持与主 Skill 的支持文件同步。
+
 ## 2026-10-08：当前 Agent 直接执行 Skill
 
 决定：Python 只执行视频下载、音频提取、ASR 和转写规范化；调用 `video-report` Skill 的当前 Coding Agent 直接读取 `transcript.md` 并生成 `report.html`。不再包含或启动额外的 Agent RPC/runtime。

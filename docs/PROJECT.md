@@ -16,6 +16,7 @@
 - Standard 用于精读，Brief 用于速览；两者都读完整转写，使用独立规则和模板。
 - 可按兼容条件复用下载、ASR 或完整转写；运行工件统一使用 UTF-8。
 - 已有转写时可跳过脚本，直接向 Skill 提供 Markdown、TXT、SRT 或 JSONL。
+- `skills/video-report/` 提供 Hermes Agent 可从 GitHub 安装的 Linux 版本，使用包装脚本定位共享 Python 运行时和任务目录。
 
 ## 已知限制
 
@@ -23,6 +24,7 @@
 - 流水线不支持任意网站、私密视频或无音频图集。
 - 云端 ASR 可能在本地停止后继续执行并产生费用。
 - 来源 ID、时间戳和页面可渲染都不能单独证明语义忠实，仍需按转写核对关键数字、条件和归属。
+- Hermes Linux 包装脚本已做静态与单元测试；真实 Linux 主机仍需验证系统依赖、Playwright Chromium 及 Bilibili/抖音各一次端到端运行。
 
 ## 文档入口
 

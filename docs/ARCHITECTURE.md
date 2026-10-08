@@ -13,6 +13,8 @@
   → report.html
 ```
 
+Hermes Linux 入口保持同一业务流程：`skills/video-report/scripts/setup-linux.sh` 准备用户目录运行时，`prepare-video.sh` 从任意工作目录调用同一个 `video-report prepare` CLI；报告仍由当前 Hermes 会话生成，不启动嵌套 Agent。
+
 不存在第二个 Agent 进程。Python 层不持有报告模型凭证，也不负责生成 HTML。
 
 ## 模块职责
@@ -26,7 +28,8 @@
 | `transcript.py` / `transcript_foundation.py` | 来源事件、规范单元、可选字幕/OCR 融合 |
 | `reuse.py` / `retention.py` | 兼容产物复用与媒体保留策略 |
 | `trace.py` | 确定性媒体阶段的 `run.trace.jsonl` |
-| `skills/video-report/` | 当前 Agent 的内容组织、来源约束、阅读模式和 HTML 模板 |
+| `src/video_report_agent/skills/video-report/` | Codex/通用版本的内容组织、来源约束、阅读模式和 HTML 模板 |
+| 仓库根目录 `skills/video-report/` | Hermes Linux 可安装包；携带同版报告规则、模板和运行时包装脚本 |
 | `inspect_report.py` / `report_image.py` | 可选的确定性页面检查和长图导出，不调用模型 |
 
 ## 任务数据
