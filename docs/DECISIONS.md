@@ -49,3 +49,11 @@
 ## 2026-09-25：默认精简 Agent 事件并保留请求延迟
 
 为降低流式碎片与重复快照造成的磁盘占用，默认保存调用级完成记录、工具详情和费用字段，完整 RPC 流改为显式调试选项并保留 7 天。代价是默认无法逐 token 回放或查看被中断调用的全部中间内容。请求首响由 Pi 请求前钩子和首个非空内容片段计时，不能用 message_start 补算旧记录。历史日志不迁移、不删除；保持原有完成判定和费用统计来源。
+
+## 2026-11-24：prepare 停在 TRANSCRIBED，faster-whisper 作为 Windows 本地后端
+
+决定：`generate` 的前半段（下载 → 音频 → ASR → 规范转写）提取为 `_prepare_transcript` 供 `generate` 与新命令 `prepare` 共用；`prepare` 在同一 `runs/<run-id>/` 产物下以 `TRANSCRIBED` 结束，不启动 Pi、不渲染报告、不需要 Pi/云端凭证。新增本地 `faster-whisper` ASR 后端（默认模型 `small`），与 `mlx`、`paraformer` 并列，输出沿用同一 `AsrRun`/`asr.json` 契约。依据：[pipeline.py](../src/video_report_agent/pipeline.py)、[prepare.py](../src/video_report_agent/prepare.py)、[faster_whisper_asr.py](../src/video_report_agent/faster_whisper_asr.py)、[WINDOWS.md](WINDOWS.md)。原因：Windows 上完整 Pi 流水线未验证，而 Coding Agent 自行生成报告只需要可靠转写；代价：模型从 Hugging Face 首次下载，CPU 速度受硬件限制，报告质量取决于接管的 Coding Agent。运行工件读写统一为 UTF-8，修正了 Windows 非 UTF-8 区域编码下的转写复用失败。`prepare` 的终态 `TRANSCRIBED` 同时纳入媒体保留（`MEDIA_KEEP_LAST` / `MEDIA_MAX_AGE_DAYS`）的终态集合，转写文本与 `asr.json` 不受影响。
+
+## 2026-10-02：链接入口扩展到抖音，抖音下载绕过 yt-dlp
+
+决定：`ingest` 新增 `validate_source_url` 统一校验 Bilibili / 抖音（`/video/<id>` 与 `modal_id` 分享页，归一化为 `douyin-<id>` 的 `video_id`）；抖音来源不调用 yt-dlp——其网页详情接口已被平台全面封锁（匿名、登录 Cookie、TLS 指纹模拟均返回 HTTP 403），改由 [douyin_download.py](../src/video_report_agent/douyin_download.py) 用安卓 UA 抓取页面内嵌的 `play_addr` uri，从无需签名的 `iesdouyin.com/aweme/v1/play` 端点拉流（方法参考开源项目 DouyinGo）；页面为 JS 反爬挑战壳时自动回退 Playwright 无头 Chromium 渲染。`--cookies` / `--cookies-from-browser` 参数作为可选透传保留。原因：抖音风控只封网页 API、不封播放端点，且页面对纯 HTTP 客户端返回 JS 挑战；代价：抖音路径依赖移动端页面结构（抖音改版需跟进），Playwright 回退首次启动较慢，图集作品无法处理。

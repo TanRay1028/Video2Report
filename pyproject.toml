@@ -29,6 +29,10 @@ enhancement = [
 mlx = [
     "mlx-whisper>=0.4.3",
 ]
+faster-whisper = [
+    "faster-whisper>=1.1.0",
+    "av>=12,<14",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

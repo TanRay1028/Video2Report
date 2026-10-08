@@ -144,7 +144,18 @@ DASHSCOPE_API_KEY=your-dashscope-api-key
 
 音频达到 60 分钟时，该后端会在中点前后 30 秒内寻找至少 250 毫秒的低音量停顿，拆成两个不重叠的片段并行转写。更短的音频或找不到合适停顿时保持单路，不硬切。句子和词时间戳会还原到原音频时间线，用量按两片合计。每份报告仍占一个任务槽，但可能同时发起两个云端 ASR 请求。
 
-**独立使用 Skill 时，可以自由选择外部 ASR；接入本项目流水线时，目前仅内置 `mlx` 和 `paraformer` 后端。** 其他本地模型或 API 需要新增相应适配，不能仅修改模型名称就直接使用。Windows 用户可以先按前面的 Skill 路径生成报告；本文不将完整项目的 Windows 原生运行视为已验证能力。
+**独立使用 Skill 时，可以自由选择外部 ASR；接入本项目流水线时，目前仅内置 `mlx`、`paraformer` 和 `faster-whisper` 后端。** 其他本地模型或 API 需要新增相应适配，不能仅修改模型名称就直接使用。Windows 用户可以先按前面的 Skill 路径生成报告；本文不将完整项目的 Windows 原生运行视为已验证能力，但 `prepare` + `faster-whisper` 路径除外（见下节）。
+
+### Windows：prepare + faster-whisper（不启动 Pi、不用云端 ASR）
+
+Windows 上可只运行到转写完成，把报告生成交给任意 Coding Agent：
+
+```sh
+uv sync --extra faster-whisper
+uv run video-report prepare 'https://www.bilibili.com/video/BV...' --asr-backend faster-whisper
+```
+
+需要 `yt-dlp` 和 `ffmpeg`/`ffprobe` 在 `PATH` 中，无需 Pi、Node.js 或任何 API Key。成功时退出码为 0，`runs/<run-id>/status.json` 的 `state` 为 `TRANSCRIBED`，产物包含 `asr.json` 与带时间戳的 `transcript.md`；不会生成 `report.html`。详见 [docs/WINDOWS.md](docs/WINDOWS.md)。
 
 ### 启动与生成
 

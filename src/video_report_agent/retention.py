@@ -1,4 +1,4 @@
-"""Prune terminal runs' media while retaining reports and source text."""
+﻿"""Prune terminal runs' media while retaining reports and source text."""
 
 import json
 import logging
@@ -7,7 +7,7 @@ import shutil
 import time
 from pathlib import Path
 
-from .ingest import UrlIngestError, _metadata, validate_bilibili_url
+from .ingest import UrlIngestError, _metadata, validate_source_url
 from .reuse import validated_asr, validated_transcript
 
 _MEDIA_SUFFIXES = {
@@ -30,8 +30,8 @@ def cleanup_media(root: Path) -> None:
                 continue
             status = run / "status.json"
             try:
-                if json.loads(status.read_text()).get("state") in {
-                    "RENDERED", "FAILED", "CANCELLED",
+                if json.loads(status.read_text(encoding="utf-8")).get("state") in {
+                    "TRANSCRIBED", "RENDERED", "FAILED", "CANCELLED",
                 }:
                     terminal.append((status.stat().st_mtime, run))
             except (OSError, ValueError, AttributeError):
@@ -65,7 +65,7 @@ def cleanup_media(root: Path) -> None:
 def cleanup_cancelled_run(run: Path) -> None:
     """Keep only complete reusable inputs and small run diagnostics after cancellation."""
     try:
-        metadata = json.loads((run / "input.json").read_text())
+        metadata = json.loads((run / "input.json").read_text(encoding="utf-8"))
     except (OSError, ValueError, AttributeError):
         metadata = {}
 
@@ -76,7 +76,7 @@ def cleanup_cancelled_run(run: Path) -> None:
 
     download = run / "download"
     try:
-        source = validate_bilibili_url(metadata["url"])
+        source = validate_source_url(metadata["url"])
         info = download / "source.info.json"
         audio_only = metadata.get("transcript_mode", "asr-only") == "asr-only"
         media = next(

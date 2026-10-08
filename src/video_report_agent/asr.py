@@ -239,4 +239,8 @@ def transcribe_audio(
         ).transcribe(
             audio_path, language
         )
+    if backend == "faster-whisper":
+        from .faster_whisper_asr import FasterWhisperBackend
+
+        return FasterWhisperBackend(model).transcribe(audio_path, language)
     raise AsrError(f"Unknown ASR backend: {backend}")

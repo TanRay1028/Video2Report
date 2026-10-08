@@ -37,18 +37,25 @@ def cloud_asr_parameters(model):
 
 def resolve_media_config(asr_backend=None, asr_model=None, ocr_backend=None):
     backend = asr_backend or os.getenv("ASR_BACKEND") or "mlx"
-    if backend not in {"mlx", "paraformer"}:
+    if backend not in {"mlx", "paraformer", "faster-whisper"}:
         raise ValueError(f"Unknown ASR_BACKEND: {backend}")
     from .paraformer import ParaformerBackend
 
-    default = (
-        MlxWhisperBackend.default_model if backend == "mlx" else ParaformerBackend.default_model
-    )
+    if backend == "mlx":
+        default = MlxWhisperBackend.default_model
+    elif backend == "paraformer":
+        default = ParaformerBackend.default_model
+    else:
+        from .faster_whisper_asr import FasterWhisperBackend
+
+        default = FasterWhisperBackend.default_model
     model = asr_model or os.getenv("ASR_MODEL") or default
     if backend == "paraformer":
         cloud_asr_parameters(model)
     if backend == "mlx" and not ("whisper" in model.lower() or os.path.isdir(model)):
         raise ValueError("mlx backend requires a Whisper repository or local model directory")
+    if backend == "faster-whisper" and not model.strip():
+        raise ValueError("faster-whisper backend requires a non-empty model")
     ocr = ocr_backend or os.getenv("OCR_BACKEND") or "rapidocr"
     if ocr != "rapidocr":
         raise ValueError(f"Unknown OCR_BACKEND: {ocr}")
@@ -66,13 +73,14 @@ def resolve_media_config(asr_backend=None, asr_model=None, ocr_backend=None):
             raise ValueError("DASHSCOPE_BASE_URL must be an HTTPS base URL without credentials")
         if not os.getenv("DASHSCOPE_API_KEY", "").strip():
             raise ValueError("DASHSCOPE_API_KEY is required for paraformer")
+    local = backend in {"mlx", "faster-whisper"}
     return {
         "asr_backend": backend,
-        "asr_provider": "local" if backend == "mlx" else "dashscope",
+        "asr_provider": "local" if local else "dashscope",
         "asr_model": model,
         "asr_language": "zh",
-        "asr_parameters": {} if backend == "mlx" else cloud_asr_parameters(model),
-        "asr_base_url": None if backend == "mlx" else base,
+        "asr_parameters": {} if local else cloud_asr_parameters(model),
+        "asr_base_url": None if local else base,
         "ocr_backend": ocr,
         "ocr_model": OCR_MODEL,
     }

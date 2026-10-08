@@ -1,4 +1,4 @@
-"""Bounded public Bilibili URL download and existing-ingest composition."""
+"""Bounded public Bilibili/Douyin URL download and existing-ingest composition."""
 
 from __future__ import annotations
 
@@ -15,8 +15,11 @@ from urllib.parse import parse_qsl, urlsplit
 import httpx
 
 BILIBILI_HOSTS = frozenset({"bilibili.com", "www.bilibili.com"})
+DOUYIN_HOSTS = frozenset({"douyin.com", "www.douyin.com"})
 _BVID_PATTERN = re.compile(r"BV[0-9A-Za-z]{10}")
 _PAGE_PATTERN = re.compile(r"[0-9]+")
+_DOUYIN_ID_PATTERN = re.compile(r"[0-9]{15,25}")
+_DOUYIN_ID_QUERY_KEYS = frozenset({"modal_id", "aweme_id"})
 _SOURCE_NAME = "source"
 MAX_VIDEO_SECONDS = 3 * 60 * 60
 
@@ -33,6 +36,10 @@ class BilibiliSource:
     canonical_url: str
 
     @property
+    def platform(self) -> str:
+        return "Bilibili"
+
+    @property
     def video_id(self) -> str:
         return f"bilibili-{self.bvid}-p{self.page_number}"
 
@@ -42,10 +49,34 @@ class BilibiliSource:
 
 
 @dataclass(frozen=True)
+class DouyinSource:
+    """The validated public Douyin source URL and its stable aweme identity."""
+
+    item_id: str
+    submitted_url: str
+    canonical_url: str
+
+    @property
+    def platform(self) -> str:
+        return "抖音"
+
+    @property
+    def video_id(self) -> str:
+        return f"douyin-{self.item_id}"
+
+    @property
+    def cache_key(self) -> str:
+        return self.item_id
+
+
+VideoSource = BilibiliSource | DouyinSource
+
+
+@dataclass(frozen=True)
 class DownloadResult:
     """Verified yt-dlp output and public metadata."""
 
-    source: BilibiliSource
+    source: VideoSource
     media_path: Path
     info_path: Path
     title: str
@@ -60,17 +91,27 @@ class UrlIngestError(RuntimeError):
         super().__init__(message)
 
 
-def _parse_bilibili_url(value: object) -> tuple[str, str, int, str]:
+def _extract_link(value: object) -> str:
     if not isinstance(value, str):
         raise UrlIngestError("URL_INVALID", "url must be a string")
     submitted_url = value.strip()
-    # Bilibili's copied share text prefixes the link with a bracketed title.
+    # Copied share text prefixes the link with a bracketed title.
     link = re.sub(r"^【.*】\s*", "", submitted_url, count=1, flags=re.DOTALL).strip()
     markdown_link = re.fullmatch(r"\[[^\]\r\n]*\]\(((?:https://|www\.)[^\s()]+)\)", link)
     if markdown_link:
         link = markdown_link.group(1)
+    else:
+        embedded = re.search(r"https?://[^\s()]+", link)
+        if embedded:
+            link = embedded.group(0)
     if link.startswith("www."):
         link = "https://" + link
+    return link
+
+
+def _parse_bilibili_url(value: object) -> tuple[str, str, int, str]:
+    submitted_url = value.strip() if isinstance(value, str) else ""
+    link = _extract_link(value)
     if link.startswith("https://b23.tv/"):
         short = urlsplit(link)
         if not re.fullmatch(r"/[A-Za-z0-9]+/?", short.path) or short.fragment:
@@ -140,6 +181,65 @@ def validate_bilibili_url(value: object) -> BilibiliSource:
     )
 
 
+def _parse_douyin_url(value: object) -> tuple[str, str, str]:
+    submitted_url = value.strip() if isinstance(value, str) else ""
+    link = _extract_link(value)
+    try:
+        parsed = urlsplit(link)
+        hostname = parsed.hostname.lower() if parsed.hostname else None
+        port = parsed.port
+    except ValueError as exc:
+        raise UrlIngestError("URL_INVALID", "url is not a valid HTTPS Douyin URL") from exc
+    if parsed.scheme != "https" or not (
+        hostname in DOUYIN_HOSTS or (hostname is not None and hostname.endswith(".douyin.com"))
+    ):
+        raise UrlIngestError("URL_INVALID", "url must use HTTPS and a Douyin host")
+    if parsed.username or parsed.password or port is not None:
+        raise UrlIngestError("URL_INVALID", "url must not include credentials or a port")
+    if parsed.fragment:
+        raise UrlIngestError("URL_INVALID", "url must not include a fragment")
+    path_match = re.fullmatch(r"/video/([0-9]{15,25})/?", parsed.path)
+    item_id = path_match.group(1) if path_match else None
+    if item_id is None:
+        id_values = [
+            query_value
+            for key, query_value in parse_qsl(parsed.query, keep_blank_values=True)
+            if key in _DOUYIN_ID_QUERY_KEYS
+        ]
+        if len(id_values) != 1 or _DOUYIN_ID_PATTERN.fullmatch(id_values[0]) is None:
+            raise UrlIngestError(
+                "URL_INVALID", "url must use /video/<id> or include one modal_id"
+            )
+        item_id = id_values[0]
+    canonical_url = f"https://www.douyin.com/video/{item_id}"
+    return submitted_url, item_id, canonical_url
+
+
+def validate_douyin_url(value: object) -> DouyinSource:
+    """Validate a public Douyin URL carrying a numeric aweme id."""
+
+    submitted_url, item_id, canonical_url = _parse_douyin_url(value)
+    return DouyinSource(
+        item_id=item_id,
+        submitted_url=submitted_url,
+        canonical_url=canonical_url,
+    )
+
+
+def validate_source_url(value: object) -> VideoSource:
+    """Validate a public video URL for any supported platform."""
+
+    if isinstance(value, str):
+        try:
+            link = _extract_link(value)
+            hostname = (urlsplit(link).hostname or "").lower()
+        except ValueError:
+            hostname = ""
+        if hostname == "douyin.com" or hostname.endswith(".douyin.com"):
+            return validate_douyin_url(value)
+    return validate_bilibili_url(value)
+
+
 def _run_command(command: list[str], runner: CommandRunner | None, *, category: str) -> Any:
     active_runner = runner or subprocess.run
     try:
@@ -179,7 +279,7 @@ def _printed_media_path(stdout: object, download_dir: Path) -> Path:
     raise UrlIngestError("DOWNLOAD_ERROR", "yt-dlp did not report a media path")
 
 
-def _metadata(info_path: Path, source: BilibiliSource) -> tuple[str, str, str]:
+def _metadata(info_path: Path, source: VideoSource) -> tuple[str, str, str]:
     try:
         payload = json.loads(info_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -202,17 +302,19 @@ def _metadata(info_path: Path, source: BilibiliSource) -> tuple[str, str, str]:
         raise UrlIngestError("DOWNLOAD_ERROR", "yt-dlp metadata has no uploader")
     title = title.strip()
     uploader = uploader.strip()
-    attribution = f"Bilibili；{uploader}；《{title}》；{source.canonical_url}"
+    attribution = f"{source.platform}；{uploader}；《{title}》；{source.canonical_url}"
     return title, uploader, attribution
 
 
 def download_bilibili_video(
-    source: BilibiliSource,
+    source: VideoSource,
     run_dir: Path,
     *,
     runner: CommandRunner | None = None,
     request_subtitles: bool = False,
     audio_only: bool = False,
+    cookies_from_browser: str | None = None,
+    cookies_file: str | None = None,
 ) -> DownloadResult:
     """Run the yt-dlp command and verify its run-local output."""
 
@@ -245,9 +347,14 @@ def download_bilibili_video(
         command.extend(["-S", "res:1080,vcodec:h264,acodec:aac", "--merge-output-format", "mp4"])
     if request_subtitles:
         command.extend(["--write-subs", "--sub-langs", "all", "--sub-format", "srt/vtt/ass/best"])
+    if cookies_from_browser:
+        # Douyin rejects anonymous requests; fresh browser cookies satisfy them.
+        command.extend(["--cookies-from-browser", cookies_from_browser])
+    if cookies_file:
+        command.extend(["--cookies", cookies_file])
     command.append(source.canonical_url)
     completed = _run_command(command, runner, category="DOWNLOAD_ERROR")
-    (run_dir / "download.log").write_text(str(getattr(completed, "stderr", "")))
+    (run_dir / "download.log").write_text(str(getattr(completed, "stderr", "")), encoding="utf-8")
     if getattr(completed, "returncode", None) == 101 or (
         not str(getattr(completed, "stdout", "")).strip()
         and "does not pass filter" in str(getattr(completed, "stderr", ""))

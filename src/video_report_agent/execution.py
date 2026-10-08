@@ -55,7 +55,7 @@ def generate(run: Path, *, timeout=RUN_TIMEOUT_SECONDS, env: dict[str, str] | No
                 pass
             process.wait()
     path = run / "status.json"
-    status = json.loads(path.read_text())
+    status = json.loads(path.read_text(encoding="utf-8"))
     if cancelled:
         status.update(state="CANCELLED", stage="CANCELLED", finished_at=time.time())
         RunTrace(run).cancelled()

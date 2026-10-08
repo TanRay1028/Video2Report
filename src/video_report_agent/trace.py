@@ -29,7 +29,7 @@ class RunTrace:
         """Close interrupted spans after the worker has stopped writing."""
         active = {}
         if self.path.exists():
-            for line in self.path.read_text().splitlines():
+            for line in self.path.read_text(encoding="utf-8").splitlines():
                 try:
                     event = json.loads(line)
                 except ValueError:

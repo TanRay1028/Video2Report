@@ -15,7 +15,7 @@ URL = "https://www.bilibili.com/video/BV1cZ8x6sEhF/"
 @pytest.fixture
 def completed(tmp_path):
     run = pipeline.create_run(tmp_path, URL)
-    metadata = json.loads((run / "input.json").read_text())
+    metadata = json.loads((run / "input.json").read_text(encoding="utf-8"))
     metadata.update(asr_model=DEFAULT_ASR_MODEL, title="Test", attribution="Bilibili")
     pipeline.write_json(run / "input.json", metadata)
     (run / "download").mkdir()
@@ -66,7 +66,7 @@ def test_pipeline_reuses_inputs_and_generates_new_report(
     metadata.update(report_mode=source_mode, uploader="UP")
     pipeline.write_json(previous / "input.json", metadata)
     info = previous / "download/source.info.json"
-    source_info = json.loads(info.read_text())
+    source_info = json.loads(info.read_text(encoding="utf-8"))
     source_info["description"] = "Original description"
     pipeline.write_json(info, source_info)
     if media_pruned:
@@ -74,7 +74,7 @@ def test_pipeline_reuses_inputs_and_generates_new_report(
     run = pipeline.create_run(
         previous.parent, URL + "?p=1&share_source=copy", report_mode=target_mode or "standard",
     )
-    original_input = json.loads((run / "input.json").read_text())
+    original_input = json.loads((run / "input.json").read_text(encoding="utf-8"))
     if target_mode is None:
         original_input.pop("report_mode")
         pipeline.write_json(run / "input.json", original_input)
@@ -93,7 +93,7 @@ def test_pipeline_reuses_inputs_and_generates_new_report(
 
     async def generate_report(current):
         assert current == run
-        assert "hello" in (current / "transcript.md").read_text()
+        assert "hello" in (current / "transcript.md").read_text(encoding="utf-8")
         (current / "report.html").write_text("fresh report")
 
     monkeypatch.setattr(
@@ -105,16 +105,16 @@ def test_pipeline_reuses_inputs_and_generates_new_report(
     assert "report_url" not in status
     assert "image_url" not in status
     assert status["title"] == "Test"
-    assert json.loads((run / "status.json").read_text())["title"] == "Test"
+    assert json.loads((run / "status.json").read_text(encoding="utf-8"))["title"] == "Test"
     assert status["download_reused_from"] is None
     assert status["transcript_reused_from"] == previous.name
-    saved_input = json.loads((run / "input.json").read_text())
+    saved_input = json.loads((run / "input.json").read_text(encoding="utf-8"))
     assert saved_input.get("report_mode") == original_input.get("report_mode") == target_mode
     assert ("report_mode" in saved_input) == (target_mode is not None)
     assert saved_input["uploader"] == "UP"
-    assert json.loads((run / "download/source.info.json").read_text()) == source_info
+    assert json.loads((run / "download/source.info.json").read_text(encoding="utf-8")) == source_info
     assert not (run / "download/source.mp4").exists()
-    assert (run / "report.html").read_text() == "fresh report"
+    assert (run / "report.html").read_text(encoding="utf-8") == "fresh report"
     assert (run / "canonical-transcript.jsonl").stat().st_ino != (
         previous / "canonical-transcript.jsonl"
     ).stat().st_ino
@@ -137,7 +137,7 @@ def test_incompatible_or_incomplete_text_is_not_reused(completed, change):
         (previous / "canonical-transcript.jsonl").write_text("")
     else:
         path = previous / "transcript-manifest.json"
-        manifest = json.loads(path.read_text())
+        manifest = json.loads(path.read_text(encoding="utf-8"))
         manifest["status"] = "DEGRADED"
         pipeline.write_json(path, manifest)
     assert reuse_transcript(run, metadata) is None
@@ -191,7 +191,7 @@ def test_completed_asr_is_reused_when_transcript_is_incomplete(completed, monkey
 
     async def report(current):
         calls.append("report")
-        assert "fresh text" in (current / "transcript.md").read_text()
+        assert "fresh text" in (current / "transcript.md").read_text(encoding="utf-8")
 
     monkeypatch.setattr(pipeline, "extract_audio", extract)
     monkeypatch.setattr(pipeline, "transcribe_audio", transcribe)

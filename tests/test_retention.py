@@ -45,6 +45,19 @@ def test_default_keeps_twenty_terminal_media_and_preserves_evidence(tmp_path, mo
     cleanup_media(tmp_path)  # Repeated cleanup is harmless.
 
 
+def test_transcribed_runs_are_terminal_for_media_retention(tmp_path, monkeypatch):
+    monkeypatch.setenv("MEDIA_KEEP_LAST", "1")
+    monkeypatch.setenv("MEDIA_MAX_AGE_DAYS", "0")
+    older = make_run(tmp_path, "older", state="TRANSCRIBED", age=3)
+    newer = make_run(tmp_path, "newer", state="TRANSCRIBED", age=1)
+    cleanup_media(tmp_path)
+    assert not (older / "audio.wav").exists()
+    assert not (older / "download/source.m4a").exists()
+    assert (older / "transcript.md").exists()
+    assert (older / "download/source.info.json").exists()
+    assert (newer / "audio.wav").exists()
+
+
 def test_age_and_disabled_limits(tmp_path, monkeypatch):
     monkeypatch.setenv("MEDIA_KEEP_LAST", "0")
     monkeypatch.setenv("MEDIA_MAX_AGE_DAYS", "0")

@@ -23,9 +23,33 @@ def main():
     run.add_argument("--ocr-mode", choices=["off", "auto", "roi", "on"], default="off")
     run.add_argument("--ocr-roi")
     run.add_argument("--subtitle-file", type=Path)
-    run.add_argument("--asr-backend", choices=["mlx", "paraformer"])
+    run.add_argument("--asr-backend", choices=["mlx", "paraformer", "faster-whisper"])
     run.add_argument("--asr-model")
     run.add_argument("--ocr-backend", choices=["rapidocr"])
+    run.add_argument(
+        "--cookies-from-browser",
+        help="browser for yt-dlp cookies (e.g. chrome, edge); Douyin downloads need it",
+    )
+    run.add_argument(
+        "--cookies",
+        type=Path,
+        help="Netscape cookies.txt for sites that reject anonymous downloads",
+    )
+    prep = sub.add_parser("prepare")
+    prep.add_argument("url")
+    prep.add_argument("--transcript-mode", choices=["asr-only", "fused"], default="asr-only")
+    prep.add_argument("--subtitle-file", type=Path)
+    prep.add_argument("--asr-backend", choices=["mlx", "paraformer", "faster-whisper"])
+    prep.add_argument("--asr-model")
+    prep.add_argument(
+        "--cookies-from-browser",
+        help="browser for yt-dlp cookies (e.g. chrome, edge); Douyin downloads need it",
+    )
+    prep.add_argument(
+        "--cookies",
+        type=Path,
+        help="Netscape cookies.txt for sites that reject anonymous downloads",
+    )
     compare = sub.add_parser("compare-asr")
     compare.add_argument("--manifest", type=Path, required=True)
     args = parser.parse_args()
@@ -34,7 +58,27 @@ def main():
 
         output = compare_asr(args.manifest, args.runs)
         print(output)
-        return 0 if json.loads((output / "status.json").read_text())["state"] == "COMPLETE" else 1
+        state = json.loads((output / "status.json").read_text(encoding="utf-8"))["state"]
+        return 0 if state == "COMPLETE" else 1
+    if args.command == "prepare":
+        # In-process on purpose: execution.generate's process-group kill is POSIX-only,
+        # and prepare must stay runnable on Windows without Pi or a deadline wrapper.
+        from .prepare import prepare
+
+        status = prepare(
+            create_run(
+                args.runs,
+                args.url,
+                transcript_mode=args.transcript_mode,
+                subtitle_file=args.subtitle_file,
+                asr_backend=args.asr_backend,
+                asr_model=args.asr_model,
+                cookies_from_browser=args.cookies_from_browser,
+                cookies_file=args.cookies,
+            )
+        )
+        print(json.dumps(status, ensure_ascii=False, indent=2))
+        return 0 if status["state"] == "TRANSCRIBED" else 1
     if args.command == "generate":
         status = generate(
             create_run(
@@ -48,6 +92,8 @@ def main():
                 asr_backend=args.asr_backend,
                 asr_model=args.asr_model,
                 ocr_backend=args.ocr_backend,
+                cookies_from_browser=args.cookies_from_browser,
+                cookies_file=args.cookies,
             )
         )
         print(json.dumps(status, ensure_ascii=False, indent=2))
