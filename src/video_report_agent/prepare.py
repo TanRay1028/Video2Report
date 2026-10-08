@@ -1,9 +1,7 @@
-"""URL → download → audio → ASR → transcript, stopping before report generation.
+"""URL → download → audio → ASR → transcript for the calling Agent.
 
-`prepare` produces the same local artifacts as the front half of
-:func:`video_report_agent.pipeline.generate` (``asr.json`` and
-``transcript.md``) but never starts Pi, never renders a report and never
-requires Pi or cloud credentials. The final status is ``TRANSCRIBED``.
+The deterministic Python step ends at ``TRANSCRIBED``. The Agent that invoked
+the Skill reads ``transcript.md`` and creates ``report.html`` itself.
 """
 
 from __future__ import annotations

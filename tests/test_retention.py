@@ -110,7 +110,7 @@ def test_cancel_keeps_reusable_inputs_and_removes_partial_outputs(tmp_path):
             },
         },
     )
-    for name in ("audio.wav", "report.html", "report.png", "pi.events.jsonl", "asr-task.json"):
+    for name in ("audio.wav", "report.html", "report.png", "asr-task.json"):
         (run / name).write_text("partial")
     (run / "sessions").mkdir()
     (run / "sessions/partial.jsonl").write_text("partial")
@@ -125,7 +125,7 @@ def test_cancel_keeps_reusable_inputs_and_removes_partial_outputs(tmp_path):
         assert (run / name).exists()
     for name in (
         "download/source.m4a.part", "audio.wav", "report.html", "report.png",
-        "pi.events.jsonl", "asr-task.json", "sessions",
+        "asr-task.json", "sessions",
     ):
         assert not (run / name).exists()
 

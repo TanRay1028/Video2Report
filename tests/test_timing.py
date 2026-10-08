@@ -1,5 +1,6 @@
 
 from video_report_agent import pipeline
+from video_report_agent.prepare import prepare
 
 
 def test_failed_run_preserves_start_and_records_finish(tmp_path, monkeypatch):
@@ -11,7 +12,7 @@ def test_failed_run_preserves_start_and_records_finish(tmp_path, monkeypatch):
         raise OSError("test download failure")
 
     monkeypatch.setattr(pipeline, "reuse_download", fail)
-    status = pipeline.generate(run)
+    status = prepare(run)
     assert status["state"] == "FAILED"
     assert status["started_at"] == 1000
     assert status["finished_at"] == 1073

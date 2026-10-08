@@ -8,10 +8,4 @@ Offline structure and runner checks (no provider calls):
 uv run pytest -q tests/test_evaluate_report.py
 ```
 
-Optional live A/B generation from the core root (uses configured model credentials and incurs provider usage):
-
-```sh
-uv run python -m video_report_agent.evaluate_report --manifest evals/report-review/manifest.json
-```
-
-Review source fidelity manually; successful rendering alone does not validate meaning. Outputs go to ignored `runs/`.
+Use the materials as inputs to the current Coding Agent when manually comparing Skill or model changes. Keep the transcript and report mode fixed between variants. Review source fidelity manually; successful rendering alone does not validate meaning.

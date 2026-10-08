@@ -1,30 +1,29 @@
-# Video Report Core
+# Video2Report 当前状态
 
-> 2026-09-24 核对本地源码与 Git，基线 `428f4fe`。本文记录实现状态，不代表本次已跑真实模型、重新验证报告质量或完成部署。
+> 2026-10-08 按当前代码核对。
 
-## 目标与范围
+## 目标与边界
 
-将公开 Bilibili 视频转成可独立阅读、回查来源的 HTML 报告。Core 维护下载、ASR、规范转写、Pi 集成、唯一产品 Skill、渲染、CLI 与评测工具。账户、网站路由、额度、调度与运营部署不属于本包。
+将公开 Bilibili 或抖音视频转成带时间戳的完整转写，再由调用 `video-report` Skill 的当前 Coding Agent 生成自包含 HTML 阅读报告。
+
+仓库只维护媒体下载、音频提取、ASR、规范转写、复用/清理、Skill、模板和可选页面检查工具。模型对转写的理解、报告写作与 HTML 编辑都由当前 Agent 完成，不启动嵌套 Agent。
 
 ## 当前能力
 
-- 三条使用路径：独立复制 Skill 与模板，用自己的 Coding Agent 阅读完整转写；通过 `video-report generate` 执行下载到报告的完整流水线；或通过 `video-report prepare` 只完成下载与本地 ASR（Windows 已验证），把报告生成交给外部 Coding Agent。
-- 流水线支持公开 Bilibili 视频及受限短链解析，最长 3 小时；默认 `asr-only`、OCR 关闭。可选 `fused` 支持字幕/OCR 文字融合，不是全面视频视觉理解。
-- 内置 ASR 为 Apple Silicon MLX Whisper、百炼 `paraformer` 适配（含代码支持的 Fun-ASR 模型），以及跨平台的本地 `faster-whisper`（Windows/Linux，CPU/GPU，默认 `small`）。云端长音频在满足时长与静音条件时分两段并行识别，恢复原时间轴。
-- `prepare` 复用流水线的下载、音频处理、转写规范化与复用逻辑，最终状态为 `TRANSCRIBED`，不启动 Pi、不生成报告；产物 `asr.json`/`transcript.md` 与 `generate` 前半段一致。
-- 默认 Standard 用于理解与查阅；Brief 用于快速掌握结论、依据和限制。两个模式读完整转写，各有规则与模板，可以复用同一来源转写。
-- Pi 负责单 Agent 循环；Python 负责确定性前后处理、进程生命周期与产物校验。生成 HTML 后尝试输出 PNG 长图。
-- 保存来源单元、流水线和 Agent 日志；按兼容条件复用下载、ASR 或完整转写。提供可选 `inspect_report` 和合成 smoke/A/B 工具。
-- 用量工具聚合完成的 assistant 消息，分开返回美元与部分模型的人民币估算；ASR 按当前配置费率估算。
+- `video-report prepare <URL>` 完成下载、FFmpeg 提音频、ASR 和 `transcript.md`，终态为 `TRANSCRIBED`。
+- 支持 Bilibili 与抖音公开链接，包含抖音 `modal_id` 页面和短链解析后的标准视频页。
+- ASR 后端包括 Apple Silicon MLX Whisper、百炼 Paraformer/Fun-ASR 和 Windows/Linux 本地 `faster-whisper`。
+- Standard 用于精读，Brief 用于速览；两者都读完整转写，使用独立规则和模板。
+- 可按兼容条件复用下载、ASR 或完整转写；运行工件统一使用 UTF-8。
+- 已有转写时可跳过脚本，直接向 Skill 提供 Markdown、TXT、SRT 或 JSONL。
 
 ## 已知限制
 
-- 流水线不支持任意平台下载；独立 Skill 可接受其他来源的文本，不等于下载器已经适配。
-- 执行期限默认 30 分钟，不含调用方排队。停止本地进程不保证取消已提交的云端 ASR。
-- `RENDERED` 表示 HTML 交付，PNG 可能失败；Pi 正常结束、来源 ID 合法或页面可渲染均不证明语义忠实和阅读质量。
-- 每任务独立目录不是操作系统沙箱；保存 Pi 会话、云任务 ID 和输入复用不等于中途自动续跑。
-- 费用是代码费率与日志计算的估算，不是账单；独立 ASR 复用路径尚不能笼统视为已去重计费，见 [PLAN](PLAN.md)。
+- Python 只保证到 `TRANSCRIBED`；`report.html` 是当前 Agent 的交付物，其质量取决于转写、模型和可用工具。
+- 流水线不支持任意网站、私密视频或无音频图集。
+- 云端 ASR 可能在本地停止后继续执行并产生费用。
+- 来源 ID、时间戳和页面可渲染都不能单独证明语义忠实，仍需按转写核对关键数字、条件和归属。
 
 ## 文档入口
 
-[使用与安装](../README.zh-CN.md) · [架构](ARCHITECTURE.md) · [当前计划与问题](PLAN.md) · [设计决策](DECISIONS.md) · [领域词汇](../CONTEXT.md) · [设计偏好](report-design-preferences.md) · [全部文档](README.md)
+[使用与安装](../README.zh-CN.md) · [架构](ARCHITECTURE.md) · [当前计划](PLAN.md) · [设计决策](DECISIONS.md) · [报告设计偏好](report-design-preferences.md)

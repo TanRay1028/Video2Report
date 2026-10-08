@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "video-report-agent"
 version = "0.1.0"
-description = "Bilibili to HTML reports with ASR and Pi RPC"
+description = "Bilibili and Douyin video transcription helpers for the video-report Skill"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [

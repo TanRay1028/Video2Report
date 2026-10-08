@@ -93,7 +93,7 @@ def _stub_pipeline_stages(monkeypatch, tmp_path, *, asr_run=None, fail_download=
     return asr_run
 
 
-def test_prepare_produces_transcribed_run_without_pi_or_report(env, monkeypatch, tmp_path):
+def test_prepare_produces_transcribed_run_for_calling_agent(env, monkeypatch, tmp_path):
     from video_report_agent.pipeline import create_run
     from video_report_agent.prepare import prepare
 

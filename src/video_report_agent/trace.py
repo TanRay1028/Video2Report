@@ -1,4 +1,4 @@
-"""Small, append-only pipeline spans; Pi keeps its own detailed event log."""
+"""Small, append-only traces for deterministic media preparation stages."""
 
 import json
 import time

@@ -37,7 +37,8 @@ def test_local_asr_worker_exits_after_success_or_failure(tmp_path, monkeypatch, 
             assert result.model == "test-model"
         pid = int(audio.with_suffix(".wav.pid").read_text())
         assert pid != os.getpid()
-        with pytest.raises(ProcessLookupError):
+        # POSIX raises ProcessLookupError; Windows reports WinError 87 as OSError.
+        with pytest.raises(OSError):
             os.kill(pid, 0)
         assert ("mlx_whisper" in sys.modules) == imported_before
 

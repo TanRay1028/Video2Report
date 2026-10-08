@@ -1,10 +1,10 @@
-# Windows 本地使用说明（prepare + faster-whisper）
+# Windows 本地使用说明（Skill + prepare + faster-whisper）
 
-本文说明在 Windows 上不使用 Pi Agent、不调用付费 ASR API，完成
+本文说明在 Windows 上不调用付费 ASR API，完成
 `Bilibili 链接 → 下载 → 本地 ASR → transcript.md` 的最小路径，
 以及如何把转写交给 Coding Agent（如 DeepSeek Harness）生成 HTML 精读报告。
 
-`generate`（Pi 流程）在 Windows 上仍视为未验证能力；`prepare` 是已验证路径。
+`prepare` 是项目唯一的视频处理命令；报告由调用 Skill 的当前 Agent 直接生成。
 
 ## 1. 环境要求
 
@@ -20,7 +20,7 @@
 uv sync --extra faster-whisper
 ```
 
-`faster-whisper` 本地转写，无需 `DASHSCOPE_API_KEY`、`PI_API_KEY` 或 Node.js/Pi。
+`faster-whisper` 本地转写，无需 `DASHSCOPE_API_KEY`、Node.js 或额外的报告模型密钥。
 
 ## 3. 运行 prepare
 
@@ -31,7 +31,7 @@ uv run video-report prepare 'https://www.bilibili.com/video/BV...' --asr-backend
 `prepare` 依次完成：链接验证 → yt-dlp 下载（audio-only）→ ffmpeg 提取
 16 kHz 单声道 WAV → faster-whisper 中文转写 → 生成 `asr.json` 与
 `transcript.md`。成功时退出码为 0，`status.json` 的 `state` 为
-`TRANSCRIBED`。全程不启动 Pi、不生成 `report.html`、不截图。
+`TRANSCRIBED`。Python 步骤不生成 `report.html`、不截图；随后由当前 Agent 继续生成 HTML。
 
 产物在 `runs/<run-id>/`：
 
@@ -83,10 +83,9 @@ skill 目录（DeepSeek Harness：会话工作区的 `.dsh/skills/video-report/`
 `transcript.md` 并按 Skill 规则生成自包含的 `report.html`；也可以直接手动
 运行 `prepare` 后，把 `transcript.md` 交给 Agent 并指明使用 video-report Skill。
 
-## 6. 与原有路径的关系
+## 6. 路径边界
 
-- `generate`、`compare-asr` 命令与 `mlx`（Apple Silicon）、`paraformer`
-  （DashScope 云端）后端保持不变；`prepare` 复用同一套下载、音频处理、
-  转写规范化与复用逻辑，只是停在 `TRANSCRIBED`，不进入 Pi 阶段。
+- `prepare` 复用同一套下载、音频处理、转写规范化与复用逻辑，
+  并在 `TRANSCRIBED` 终止。`compare-asr` 仅用于比较 ASR 后端。
 - Windows 默认区域编码不是 UTF-8；本项目的运行工件（`transcript.md`、
   `asr.json` 等）统一以 UTF-8 读写，请勿用非 UTF-8 编辑器改动后放回。

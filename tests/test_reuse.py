@@ -6,6 +6,7 @@ import pytest
 from video_report_agent import pipeline
 from video_report_agent.asr import DEFAULT_ASR_MODEL
 from video_report_agent.ingest import validate_bilibili_url
+from video_report_agent.prepare import prepare
 from video_report_agent.reuse import reuse_download, reuse_transcript
 from video_report_agent.transcript_foundation import FUSION_VERSION, NORMALIZER_VERSION
 
@@ -59,7 +60,7 @@ def completed(tmp_path):
     ("standard", "brief"), ("brief", "standard"), ("brief", None),
 ])
 @pytest.mark.parametrize("media_pruned", [False, True])
-def test_pipeline_reuses_inputs_and_generates_new_report(
+def test_prepare_reuses_completed_transcript(
     completed, monkeypatch, source_mode, target_mode, media_pruned,
 ):
     previous, metadata = completed
@@ -91,17 +92,8 @@ def test_pipeline_reuses_inputs_and_generates_new_report(
     ):
         monkeypatch.setattr(pipeline, name, unexpected)
 
-    async def generate_report(current):
-        assert current == run
-        assert "hello" in (current / "transcript.md").read_text(encoding="utf-8")
-        (current / "report.html").write_text("fresh report")
-
-    monkeypatch.setattr(
-        pipeline, "PiRunner",
-        lambda: SimpleNamespace(run=generate_report, provider="test", model="test"),
-    )
-    status = pipeline.generate(run)
-    assert status["state"] == "RENDERED"
+    status = prepare(run)
+    assert status["state"] == "TRANSCRIBED"
     assert "report_url" not in status
     assert "image_url" not in status
     assert status["title"] == "Test"
@@ -112,9 +104,13 @@ def test_pipeline_reuses_inputs_and_generates_new_report(
     assert saved_input.get("report_mode") == original_input.get("report_mode") == target_mode
     assert ("report_mode" in saved_input) == (target_mode is not None)
     assert saved_input["uploader"] == "UP"
-    assert json.loads((run / "download/source.info.json").read_text(encoding="utf-8")) == source_info
+    saved_source = json.loads(
+        (run / "download/source.info.json").read_text(encoding="utf-8")
+    )
+    assert saved_source == source_info
     assert not (run / "download/source.mp4").exists()
-    assert (run / "report.html").read_text(encoding="utf-8") == "fresh report"
+    assert "hello" in (run / "transcript.md").read_text(encoding="utf-8")
+    assert not (run / "report.html").exists()
     assert (run / "canonical-transcript.jsonl").stat().st_ino != (
         previous / "canonical-transcript.jsonl"
     ).stat().st_ino
@@ -155,7 +151,7 @@ def test_page_and_subtitle_download_requirements(completed):
     assert reuse_download(validate_bilibili_url(URL), run, request_subtitles=True) == (None, None)
 
 
-def test_no_history_runs_normal_pipeline(tmp_path, monkeypatch):
+def test_no_history_runs_normal_prepare_pipeline(tmp_path, monkeypatch):
     run = pipeline.create_run(tmp_path, URL)
     calls = []
 
@@ -164,7 +160,7 @@ def test_no_history_runs_normal_pipeline(tmp_path, monkeypatch):
         raise RuntimeError("stop before external work")
 
     monkeypatch.setattr(pipeline, "download_bilibili_video", download)
-    assert pipeline.generate(run)["state"] == "FAILED"
+    assert prepare(run)["state"] == "FAILED"
     assert calls == ["download"]
 
 
@@ -189,23 +185,15 @@ def test_completed_asr_is_reused_when_transcript_is_incomplete(completed, monkey
         )
         return SimpleNamespace(canonical_units=[unit]), {}, {}
 
-    async def report(current):
-        calls.append("report")
-        assert "fresh text" in (current / "transcript.md").read_text(encoding="utf-8")
-
     monkeypatch.setattr(pipeline, "extract_audio", extract)
     monkeypatch.setattr(pipeline, "transcribe_audio", transcribe)
     monkeypatch.setattr(pipeline, "build_transcript", build)
-    monkeypatch.setattr(
-        pipeline, "PiRunner",
-        lambda: SimpleNamespace(run=report, provider="test", model="test"),
-    )
-    status = pipeline.generate(run)
-    assert status["state"] == "RENDERED"
+    status = prepare(run)
+    assert status["state"] == "TRANSCRIBED"
     assert status["download_reused_from"] == previous.name
     assert status["transcript_reused_from"] is None
     assert status["asr_reused_from"] == previous.name
-    assert calls == ["audio", "canonical", "report"]
+    assert calls == ["audio", "canonical"]
 
 
 def test_invalid_asr_is_not_reused(completed, monkeypatch):
@@ -232,17 +220,10 @@ def test_invalid_asr_is_not_reused(completed, monkeypatch):
         )
         return SimpleNamespace(canonical_units=[unit]), {}, {}
 
-    async def report(current):
-        return None
-
     monkeypatch.setattr(pipeline, "extract_audio", extract)
     monkeypatch.setattr(pipeline, "transcribe_audio", transcribe)
     monkeypatch.setattr(pipeline, "build_transcript", build)
-    monkeypatch.setattr(
-        pipeline, "PiRunner",
-        lambda: SimpleNamespace(run=report, provider="test", model="test"),
-    )
-    assert pipeline.generate(run)["state"] == "RENDERED"
+    assert prepare(run)["state"] == "TRANSCRIBED"
     assert called == ["asr"]
 
 

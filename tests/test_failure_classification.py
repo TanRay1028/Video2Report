@@ -53,14 +53,15 @@ def test_asr_http_diagnostics_are_safe(tmp_path, monkeypatch, http, code, expect
 
 
 
-def test_pipeline_persists_public_asr_error(tmp_path, monkeypatch):
-    from video_report_agent.pipeline import create_run, generate
+def test_prepare_persists_public_asr_error(tmp_path, monkeypatch):
+    from video_report_agent.pipeline import create_run
+    from video_report_agent.prepare import prepare
     run = create_run(tmp_path, 'BV1aTtb6uE7d')
     def fail(*args, **kwargs):
         raise CloudAsrError('submit', 'HTTP request rejected', http_status=400,
                             provider_code='Arrearage')
     monkeypatch.setattr('video_report_agent.pipeline.reuse_download', fail)
-    status = generate(run)
+    status = prepare(run)
     assert status['error_code'] == 'ASR_BILLING_UNAVAILABLE'
     assert status['http_status'] == 400
     assert status['provider_code'] == 'Arrearage'

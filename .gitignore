@@ -19,9 +19,6 @@ runs/
 :memory:.ses
 Archify/
 
-# Pi project credentials and runtime state
-config/pi/*
-
 # WorkBuddy agent workspace (local tool state: memory logs, tmp scratch files)
 .workbuddy/
 
