@@ -29,7 +29,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:20px;background:#f5f7f9;
 .evidence-rows{list-style:none;counter-reset:evidence-row;display:grid;gap:31px;margin:25px 0 34px;padding:0}.evidence-rows>li{counter-increment:evidence-row;display:grid;grid-template-columns:minmax(150px,186px) minmax(0,1fr);gap:22px;margin:0}.evidence-topic:before{content:counter(evidence-row,decimal-leading-zero);display:block;color:var(--accent);font-size:12px;font-weight:700;line-height:1.2}.evidence-topic h3{font-size:17px;line-height:1.5;margin:5px 0 4px}.evidence-topic h3:before{display:none}.evidence-body{min-width:0}.evidence-judgment{margin:0;color:var(--blue);font-weight:650;line-height:1.55}.evidence-detail{margin:8px 0 0;font-size:15px;line-height:1.72}
 .cycle-map{margin:26px 0}.cycle-map svg{display:block;width:100%;height:auto}.cycle-node{fill:#edf7fc;stroke:#d6eaf3;stroke-width:1}.cycle-edge{fill:none;stroke:#6997ad;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}.cycle-title{font-size:17px;font-weight:650;fill:var(--heading)}.cycle-note{font-size:14px;fill:#426779}.cycle-label{font-size:14px;fill:#426779}.cycle-map figcaption{margin-top:8px;font-size:14px;color:var(--muted)}
 details{margin-top:42px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}.intro+details{padding:0 0 20px;border-top:0;border-bottom:1px solid var(--line)}summary{cursor:pointer;width:fit-content;color:var(--heading)}details[open] summary{margin-bottom:14px}.video-description-text{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}footer{margin-top:28px;font-size:12px;color:var(--muted)}.paper{overflow-wrap:anywhere}
-footer{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}.footer-link,.footer-link:hover{color:inherit;text-decoration:underline}
+footer{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
 @media print{body{background:white}.paper{margin:0 auto;box-shadow:none}.callout,.card,.category,.tile{break-inside:avoid}h2,h3{break-after:avoid}}
 @media print{.categories-detailed>.category{break-inside:auto}.categories-detailed h4{break-after:avoid}}
 @media(min-width:1195px) and (max-width:1448px){.paper{margin-left:310px;margin-right:24px}.report-nav{left:24px}}
@@ -121,7 +121,7 @@ State / Relationship Map：使用 HTML/CSS 或内联 SVG 呈现带名称的对�
 <!-- 图示按 modes/standard.md 的“图示的选择、绘制与检查”执行：精确关系先计算，概念关系有依据，无法核实则简化；生成的 SVG 内联于本页。 -->
 {{BODY}}
 <details><summary>来源与处理说明</summary>{{SOURCES}}</details>
-<footer><span>视频报告·精读</span><a class="footer-link" href="https://vreport.tri4t.xyz/">vreport.tri4t.xyz</a></footer>
+<footer><span>视频报告·精读</span></footer>
 </main>
 <script>
 (() => {
